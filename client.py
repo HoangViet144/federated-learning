@@ -37,6 +37,16 @@ class Client:
 
     self.train_round = 0
 
+    self.init_model()
+
+  def init_model(self):
+    is_model_outdated, server_model_version = self.is_model_outdated()
+
+    if is_model_outdated:
+      self.update_model()
+      self.model_version = server_model_version
+      print('finish init model, model version {}'.format(server_model_version))
+
   def update_model(self):
     print('updating model...')
     resp = requests.get('http://127.0.0.1:5000/model/parameter')
@@ -45,7 +55,8 @@ class Client:
 
   def run(self):
     while True:
-      if self.is_model_outdated():
+      is_model_outdated, _ = self.is_model_outdated()
+      if is_model_outdated:
         self.train_round = 0
 
         while True:
@@ -69,10 +80,10 @@ class Client:
     try:
       resp = requests.get('http://127.0.0.1:5000/model/version')
       server_model_version = int(resp.text)
-      return server_model_version != self.model_version
+      return server_model_version != self.model_version, server_model_version
     except Exception as e:
       print(e)
-      return False
+      return False, self.model_version
 
   def train(self):
     train_loss = 0.0
@@ -106,14 +117,6 @@ class Client:
 
   def publish_model_parameter(self):
     print('publish_model_parameter...')
-    # messsage = {
-    #   'client_id': self.client_id, 
-    #   'model_parameter': self.model.state_dict(),
-    # }
-
-    # for layer, value in self.model.state_dict().items():
-    #   messsage['model_parameter'][layer] = value.tolist()
-
     self.kafka_producer.send(FD_KAFKA_TOPIC, Message(self.client_id, self.model.state_dict()))
 
   def get_train_status(self):

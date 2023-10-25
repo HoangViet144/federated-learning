@@ -10,6 +10,7 @@ import base64
 from constant import KAFKA_HOST, KAFKA_CONSUMER_GROUP, FD_KAFKA_TOPIC, MIN_RECEIVE_NO_CLIENT, TrainStatus, MAX_TRAIN_ROUND
 import torch
 import sys
+import os
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -68,6 +69,20 @@ class FlaskAppWrapper(object):
     self.client_ids = dict()
     self.train_round = 0
     self.early_stoper = None
+    
+    # load pretrained model if exist
+    self.init_model()
+  
+  def init_model(self):
+    load_model = False
+    for model in os.listdir("./trained_model"):
+      if int(model) > self.model_version:
+        self.model_version = int(model)
+        load_model = True
+
+    if load_model:
+      self.model.load_state_dict(torch.load('./trained_model/{}'.format(self.model_version)))
+      print('load model complete, current model version {}'.format(self.model_version))
 
   def run(self):
     self.kafka_consumer.subscribe([FD_KAFKA_TOPIC])
@@ -107,6 +122,7 @@ class FlaskAppWrapper(object):
         validate_loss = self.evaluate_model()
 
         if self.should_stop_training(validate_loss):
+          print("done training, model version {}".format(self.model_version))
           self.train_status = TrainStatus.END
           self.start_train_time = 10**10
           torch.save(self.model.state_dict(), "./trained_model/{}".format(self.model_version))
@@ -150,8 +166,8 @@ class FlaskAppWrapper(object):
         correct_predict += (predicted == validate_label).sum().item()
 
     avg_vloss = running_vloss / (i + 1)
-    print('LOSS train round{} valid {}'.format(self.train_round, avg_vloss))
-    print('Accuracy: {.2f} %'.format(correct_predict / total_predict * 100))
+    print('LOSS train round {} valid {}'.format(self.train_round, avg_vloss))
+    print('Accuracy: {:.2f} %'.format(correct_predict / total_predict * 100))
 
     return avg_vloss
 
