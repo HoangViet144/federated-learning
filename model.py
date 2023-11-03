@@ -23,3 +23,8 @@ class NeuralNet(nn.Module):
     out = out.reshape(out.size(0), -1)  # Convert to 1D np array
     out = self.fc(out) 
     return out
+
+import torchvision
+from torchview import draw_graph
+
+model_graph = draw_graph(NeuralNet(), input_size=(1,1,28,28), expand_nested=True, save_graph=True, filename="model")

@@ -11,6 +11,7 @@ from constant import KAFKA_HOST, KAFKA_CONSUMER_GROUP, FD_KAFKA_TOPIC, MIN_RECEI
 import torch
 import sys
 import os
+from visdom import Visdom
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -42,6 +43,12 @@ class EndpointAction(object):
 class FlaskAppWrapper(object):
   def __init__(self, name, validate_dataset_path):
     self.lock = threading.Semaphore()
+
+    self.viz = Visdom(port="8097", server="http://localhost", base_url="/", username="", password="")
+    self.viz_loss_window = self.viz.line(
+          Y=torch.zeros((1)).cpu(),
+          X=torch.zeros((1)).cpu(),
+          opts=dict(xlabel='epoch',ylabel='Accuray',title='Validation accuracy',legend=['Accuracy']))
 
     self.app = Flask(name)
     self.kafka_consumer = KafkaConsumer( 
@@ -168,6 +175,7 @@ class FlaskAppWrapper(object):
     avg_vloss = running_vloss / (i + 1)
     print('LOSS train round {} valid {}'.format(self.train_round, avg_vloss))
     print('Accuracy: {:.2f} %'.format(correct_predict / total_predict * 100))
+    self.viz.line(X=torch.ones((1,1)).cpu()*self.train_round,Y=torch.Tensor([correct_predict / total_predict * 100]).unsqueeze(0).cpu(),win=self.viz_loss_window,update='append')
 
     return avg_vloss
 
