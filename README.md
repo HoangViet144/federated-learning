@@ -8,6 +8,11 @@ First, install all required packages
 pip install -r requirements.txt
 ```
 
+Next, setup Kafka:
+```
+docker-compose up -d
+```
+
 Then, run Visdom server to plot loss metric and accuracy metric real time:
 ```
 Visdom
